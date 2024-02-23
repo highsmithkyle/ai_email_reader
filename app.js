@@ -1,49 +1,27 @@
 const express = require('express');
 const multer = require('multer');
 const ffmpeg = require('fluent-ffmpeg');
-const fs = require('fs');
 const app = express();
-const upload = multer({ dest: 'uploads/' }); 
+const upload = multer({ dest: 'uploads/' });
 
 app.use(express.static('public'));
 
-app.post('/upload', upload.single('video'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('No file uploaded.');
-  }
+app.post('/upload', upload.fields([{ name: 'audio', maxCount: 1 }, { name: 'image', maxCount: 1 }]), (req, res) => {
+  const audioPath = req.files.audio[0].path;
+  const imagePath = req.files.image[0].path;
+  const outputPath = `processed/podcast_video.mp4`;
 
-  const tempPath = req.file.path;
-  const outputPath = `processed/${Date.now()}_${req.file.originalname}`;
-
-  ffmpeg(tempPath)
-  .setStartTime('00:00:00') 
-  .setDuration(5) 
-  .output(outputPath)
-  .on('end', () => {
-    console.log(`Processed video saved to: ${outputPath}`);
-    res.download(outputPath, (err) => {
-      if (err) {
-        console.error('Download Error:', err);
-        return res.status(500).send('Error sending file.');
-      }
-
-
-      fs.unlink(outputPath, (err) => {
-        if (err) console.error('Error deleting processed file:', err);
-      });
-    });
-  })
-  .on('error', (err) => {
-    console.error('FFmpeg Error:', err);
-    
-    
-    fs.unlink(tempPath, (err) => {
-      if (err) console.error('Error deleting uploaded file:', err);
-    });
-
-    return res.status(500).send('Error processing video.');
-  })
-  .run();
+  ffmpeg()
+    .addInput(imagePath)
+    .loop()
+    .inputFPS(1)
+    .addInput(audioPath)
+    .audioCodec('copy')
+    .videoCodec('libx264')
+    .outputOptions('-shortest')
+    .output(outputPath)
+    .on('end', () => res.download(outputPath))
+    .run();
 });
 
 const port = 3000;
