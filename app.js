@@ -9,6 +9,10 @@ const upload = multer({ dest: 'uploads/' });
 
 app.use(express.static('public')); 
 
+app.get('/', (req, res) => {
+    res.send('Route is set up');
+  });
+
 app.post('/upload', upload.single('video'), (req, res) => {
   const tempPath = req.file.path;
   const outputPath = `processed/${Date.now()}_${req.file.originalname}`;
